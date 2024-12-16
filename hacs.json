@@ -1,0 +1,7 @@
+{
+  "name": "Mijia Curtain",
+  "render_readme": true,
+  "domain": "mijia_curtain",
+  "documentation": "https://github.com/tinymins/home-assistant-custom-component-mijia-curtain",
+  "issue_tracker": "https://github.com/tinymins/home-assistant-custom-component-mijia-curtain/issues"
+}
