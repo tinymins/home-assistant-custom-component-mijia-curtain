@@ -1,9 +1,11 @@
 {
   "domain": "mijia_curtain",
   "name": "Mijia Curtain",
-  "version": "2021.6.7",
-  "documentation": "https://www.natic.cn",
+  "config_flow": true,
+  "documentation": "https://github.com/tinymins/home-assistant-custom-component-mijia-curtain",
+  "requirements": [],
   "dependencies": [],
-  "codeowners": ["@natic"],
-  "requirements": []
+  "codeowners": ["@tinymins"],
+  "version": "1.0.0",
+  "iot_class": "local_polling"
 }

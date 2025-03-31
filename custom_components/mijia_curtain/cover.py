@@ -1,4 +1,51 @@
-"""Support for Mijia Curtain."""
+"""Platform for Mijia Curtain cover integration."""
+from homeassistant.components.cover import CoverEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_NAME, CONF_HOST, CONF_TOKEN, CONF_MODEL, CONF_SCAN_INTERVAL
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up the Mijia Curtain cover from config entry."""
+    config = config_entry.data
+    options = config_entry.options
+
+    # Get configuration parameters, prioritize options values
+    host = config.get(CONF_HOST)
+    token = options.get(CONF_TOKEN, config.get(CONF_TOKEN))
+    model = options.get(CONF_MODEL, config.get(CONF_MODEL))
+    name = config.get(CONF_NAME)
+    scan_interval = options.get(CONF_SCAN_INTERVAL, config.get(CONF_SCAN_INTERVAL, 30))
+
+    try:
+        # Try to connect to the device and get information
+        miio_device = Device(host, token)
+        device_info = miio_device.info()
+        if model is None or model == "":
+            model = device_info.model
+        unique_id = f"{model.replace('.', '_') if model else 'unknown_model'}_{format_mac(device_info.mac_address).replace(':', '')}"
+        _LOGGER.info(
+            "%s %s %s detected",
+            model,
+            device_info.firmware_version,
+            device_info.hardware_version,
+        )
+
+        # Create and add the device
+        cover = MijiaCurtain(unique_id, name, host, token, model)
+        async_add_entities([cover], True)
+        _LOGGER.info("Successfully added Mijia Curtain entity: %s", name)
+    except DeviceException as ex:
+        _LOGGER.error("Failed to connect to Mijia Curtain: %s", ex)
+        raise PlatformNotReady from ex
+    except Exception as ex:
+        _LOGGER.error("Unexpected error setting up Mijia Curtain: %s", ex, exc_info=True)
+        raise PlatformNotReady from ex
+
 from homeassistant.components.cover import (
     DOMAIN,
     ENTITY_ID_FORMAT,
@@ -303,19 +350,40 @@ class MijiaCurtain(CoverEntity):
         self.entity_id = f"cover.mijia_curtain_{unique_id}"
         self._unique_id = unique_id
         self._name = name
+        self._host = host
+        self._token = token
         self._model = model
+        self._available = True
         self._mapping = get_miot_device_mapping(model)
         self._current_position = 0
         self._target_position = 0
         self._action = 0
         # init device
+        _LOGGER.error("INIT Mijia Curtain: %s %s %s", host, token)
         self.miotDevice = MiotDevice(ip=host, token=token, mapping=self._mapping)
         _LOGGER.info("Init miot device: {}, {}".format(self._name, self.miotDevice))
 
     @property
+    def available(self):
+        """Return True if entity is available."""
+        return self._available
+
+    def update(self):
+        """Update the entity."""
+        try:
+            self.update_current_position()
+            self.update_target_position()
+            self.update_action()
+            self._available = True
+            _LOGGER.debug('update_state {} data: {}'.format(self._name, self.state_attributes))
+        except Exception as ex:
+            self._available = False
+            _LOGGER.error("Error updating Mijia Curtain: %s", ex)
+
+    @property
     def unique_id(self):
         return self._unique_id
-    
+
     @property
     def name(self):
         return self._name
@@ -323,7 +391,7 @@ class MijiaCurtain(CoverEntity):
     @property
     def current_cover_position(self):
         return self._current_position
-    
+
     @property
     def current_cover_tilt_position(self):
         if self._current_position > 5:
@@ -388,7 +456,7 @@ class MijiaCurtain(CoverEntity):
     @property
     def is_closed(self):
         return self._current_position == 0
-    
+
     @property
     def is_opened(self):
         return self._current_position == 100
@@ -522,4 +590,3 @@ class MijiaCurtain(CoverEntity):
             _LOGGER.error("Get property {} exception".format(property_key), exc_info=True)
         _LOGGER.debug("{}, {} is: {}".format(self._name, property_key, value))
         return value
-
