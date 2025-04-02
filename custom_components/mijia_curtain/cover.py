@@ -359,7 +359,6 @@ class MijiaCurtain(CoverEntity):
         self._target_position = 0
         self._action = 0
         # init device
-        _LOGGER.error("INIT Mijia Curtain: %s %s %s", host, token)
         self.miotDevice = MiotDevice(ip=host, token=token, mapping=self._mapping)
         _LOGGER.info("Init miot device: {}, {}".format(self._name, self.miotDevice))
 
